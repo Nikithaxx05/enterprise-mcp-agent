@@ -1,0 +1,13 @@
+[project]
+name = "enterprise-mcp-agent"
+version = "0.1.0"
+description = "Local MCP server exposing enterprise business data, documents, and workflow analysis tools."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.2.0",
+    "pandas>=2.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

@@ -1,0 +1,7 @@
+Operations Review
+
+Finance teams spend the most time on invoice follow-up, dispute triage, and payment-status reporting. High-volume manual work is a strong candidate for automation when the work is frequent, rule-based, and tied to measurable cycle time.
+
+Customer support leaders want automated ticket routing for authentication, integration, and billing issues. Tickets with high priority and open status should be escalated when they affect customers with high annual revenue or high risk scores.
+
+Operations teams identified approval workflows, monthly reporting, and vendor coordination as repeatable processes with high automation potential.

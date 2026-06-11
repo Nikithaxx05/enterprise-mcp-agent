@@ -1,0 +1,9 @@
+Customer Success Notes
+
+Acme Manufacturing requested automated invoice reminders after two late payments in the last quarter. Their finance team cited manual reconciliation and missing purchase order references as recurring friction.
+
+Nimbus Health Group is expanding its analytics platform into three hospital networks. Security review notes show strong executive sponsorship, but support tickets mention intermittent SSO failures during shift changes.
+
+Vertex Retail Co. reported that store managers spend several hours each week consolidating stock transfer approvals. The operations team asked for workflow automation around exception approvals and vendor backorder notifications.
+
+Atlas Energy Partners is under renewal review. Account notes mention aging unpaid invoices, field-service integration delays, and a request for clearer incident escalation reporting.

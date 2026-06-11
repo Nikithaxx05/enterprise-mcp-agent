@@ -1,0 +1,9 @@
+Security and Compliance Brief
+
+Enterprise customers in healthcare and financial services require clear audit trails for support access, invoice disputes, and approval workflows. Manual handoffs increase compliance risk because approvals are often recorded in email threads rather than structured systems.
+
+Nimbus Health Group requires HIPAA-aligned data handling, quarterly access reviews, and faster response for high-priority authentication incidents.
+
+Acme Manufacturing requires SOC 2 evidence for invoice-processing integrations and wants an exportable audit log for finance approvals.
+
+Atlas Energy Partners flagged vendor risk concerns related to delayed integrations and inconsistent escalation notes.
