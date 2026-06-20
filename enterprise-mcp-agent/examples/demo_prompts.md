@@ -15,3 +15,8 @@
 13. Run an agent workflow to prioritize finance automation and customer risk for Atlas Energy Partners.
 14. Which workflow automation candidates have the largest monthly manual-hour impact?
 15. Search vector document snippets for compliance escalation risk.
+16. Get the HubSpot CRM record for Atlas Energy Partners.
+17. Show unresolved critical Jira tickets for Atlas Energy Partners.
+18. Which customers have overdue invoices and unresolved critical tickets?
+19. Analyse GitHub repository risk for Nikithaxx05/enterprise-mcp-agent.
+20. Run an agent workflow that combines local risk, HubSpot CRM context, Jira tickets, documents, workflows, and GitHub delivery risk.

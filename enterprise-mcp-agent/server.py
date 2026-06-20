@@ -10,6 +10,7 @@ from typing import Any
 import pandas as pd
 from mcp.server.fastmcp import FastMCP
 
+from integrations import analyse_github_repository, get_hubspot_customer, get_open_jira_tickets
 from sql_generator import generate_sql
 from synthetic_data import generate_synthetic_records
 from vector_search import LocalVectorIndex
@@ -392,6 +393,59 @@ def generate_risk_report(customer_name: str) -> str:
 
 
 @mcp.tool()
+def get_customer_from_hubspot(customer_name: str) -> str:
+    """Fetch CRM customer context from HubSpot, with a local demo fallback when credentials are absent."""
+    try:
+        return get_hubspot_customer(customer_name)
+    except Exception as exc:
+        return f"HubSpot lookup failed: {exc}"
+
+
+@mcp.tool()
+def get_open_jira_tickets_for_customer(customer_name: str | None = None, priority: str | None = None) -> str:
+    """Fetch unresolved Jira tickets, optionally filtered by customer and priority."""
+    try:
+        return get_open_jira_tickets(customer_name=customer_name, priority=priority)
+    except Exception as exc:
+        return f"Jira ticket lookup failed: {exc}"
+
+
+@mcp.tool()
+def analyse_repository_risk(owner_repo: str | None = None) -> str:
+    """Analyse GitHub repository risk using open issues, pull requests, and contributors."""
+    try:
+        return analyse_github_repository(owner_repo)
+    except Exception as exc:
+        return f"GitHub repository risk analysis failed: {exc}"
+
+
+@mcp.tool()
+def find_customers_with_overdue_invoices_and_critical_tickets(customer_name: str | None = None) -> str:
+    """Combine local overdue invoice exposure with unresolved critical Jira ticket context."""
+    try:
+        sql = """
+        SELECT c.name AS customer, SUM(i.amount) AS overdue_invoice_amount, c.risk_score
+        FROM customers c
+        JOIN invoices i ON i.customer_id = c.id
+        WHERE i.status = 'overdue'
+        GROUP BY c.name, c.risk_score
+        ORDER BY overdue_invoice_amount DESC
+        LIMIT 10
+        """
+        rows = execute_read_only_sql(sql)
+        local_answer = rows_to_markdown(rows)
+        jira_answer = get_open_jira_tickets(customer_name=customer_name, priority="Critical")
+        return (
+            "Customers with overdue invoice exposure:\n\n"
+            f"{local_answer}\n\n"
+            "Critical unresolved Jira context:\n\n"
+            f"{jira_answer}"
+        )
+    except Exception as exc:
+        return f"Combined invoice and Jira risk lookup failed: {exc}"
+
+
+@mcp.tool()
 def database_stats() -> str:
     """Show record counts for the seeded enterprise dataset."""
     try:
@@ -427,6 +481,8 @@ def run_agent_workflow(goal: str, customer_name: str | None = None, department: 
 
     if customer_name:
         steps.extend(["## Customer Risk", generate_risk_report(customer_name), ""])
+        steps.extend(["## HubSpot CRM Context", get_customer_from_hubspot(customer_name), ""])
+        steps.extend(["## Jira Ticket Context", get_open_jira_tickets_for_customer(customer_name, "Critical"), ""])
 
     query = goal
     if customer_name:
@@ -444,10 +500,12 @@ def run_agent_workflow(goal: str, customer_name: str | None = None, department: 
             workflow_department = "Operations"
 
     steps.extend(["## Workflow Analysis", analyse_workflows(workflow_department), ""])
+    steps.extend(["## GitHub Delivery Risk", analyse_repository_risk(), ""])
     steps.extend(
         [
             "## Agent Recommendation",
             "- Use the structured data to prioritize customers or departments with measurable exposure.",
+            "- Combine CRM context and unresolved support tickets before deciding renewal or escalation actions.",
             "- Use document findings as supporting evidence before automation or escalation decisions.",
             "- Start with the highest monthly manual-hour workflow because it has the clearest automation ROI.",
         ]

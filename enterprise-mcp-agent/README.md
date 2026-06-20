@@ -1,6 +1,6 @@
 # enterprise-mcp-agent
 
-`enterprise-mcp-agent` is a local Model Context Protocol server that exposes realistic enterprise business data, document search, and workflow analysis tools to an LLM client. It is intentionally self-contained: data lives in SQLite, documents live in local text files, analysis uses Pandas, and no external API calls are made.
+`enterprise-mcp-agent` is a local Model Context Protocol server that exposes realistic enterprise business data, document search, workflow analysis, CRM context, ticket context, and repository-risk tools to an LLM client. It is self-contained by default: data lives in SQLite, documents live in local text files, and analysis uses Pandas. Optional HubSpot, Jira, and GitHub tools can call live APIs when credentials are configured.
 
 ## Architecture
 
@@ -10,6 +10,7 @@ flowchart LR
     MCP --> SQL["SQLite enterprise.db"]
     MCP --> Docs["Local documents/*.txt"]
     MCP --> Pandas["Pandas workflow and risk analysis"]
+    MCP --> APIs["Optional HubSpot / Jira / GitHub APIs"]
     SQL --> Customers["customers"]
     SQL --> Invoices["invoices"]
     SQL --> Tickets["support_tickets"]
@@ -23,6 +24,10 @@ flowchart LR
 - `search_documents(query: str)`: searches local text files through a local vector-style index and returns ranked snippets.
 - `analyse_workflows(department: str | None)`: ranks automation candidates by estimated monthly manual hours.
 - `generate_risk_report(customer_name: str)`: combines customer risk, invoice exposure, support tickets, and document findings into a structured report.
+- `get_customer_from_hubspot(customer_name: str)`: fetches CRM company context from HubSpot, with a demo fallback when credentials are absent.
+- `get_open_jira_tickets_for_customer(customer_name: str | None, priority: str | None)`: fetches unresolved Jira tickets, with a demo fallback when credentials are absent.
+- `analyse_repository_risk(owner_repo: str | None)`: uses the GitHub API to summarize open issues, pull requests, contributors, and repository risk.
+- `find_customers_with_overdue_invoices_and_critical_tickets(customer_name: str | None)`: combines local overdue invoice exposure with unresolved critical Jira ticket context.
 - `database_stats()`: shows record counts for the seeded synthetic enterprise dataset.
 - `run_agent_workflow(goal: str, customer_name: str | None, department: str | None)`: runs a simple multi-step agent workflow that combines tool outputs into recommendations.
 
@@ -31,7 +36,7 @@ flowchart LR
 - SQLite is opened locally only.
 - SQL execution is restricted to `SELECT`.
 - Write or schema-changing commands such as `DROP`, `DELETE`, `UPDATE`, `INSERT`, and `ALTER` are rejected.
-- The implementation does not call external APIs.
+- External APIs are optional and only used by the HubSpot, Jira, and GitHub tools when configured or explicitly called.
 - Tool failures return clear error messages instead of raw tracebacks.
 
 ## Setup
@@ -56,13 +61,33 @@ streamlit run dashboard.py
 
 It shows customer counts, invoice exposure, risk and revenue views, and workflow automation candidates.
 
+## Optional API Integrations
+
+The project works without credentials. HubSpot and Jira tools return realistic demo fallback data until you configure live API access. GitHub can call the public GitHub API and can use `GITHUB_TOKEN` for higher rate limits.
+
+```bash
+# HubSpot private app token
+export HUBSPOT_ACCESS_TOKEN="pat-na1-..."
+
+# Jira Cloud
+export JIRA_BASE_URL="https://your-domain.atlassian.net"
+export JIRA_EMAIL="you@example.com"
+export JIRA_API_TOKEN="..."
+export JIRA_PROJECT_KEY="ENT"
+
+# GitHub
+export GITHUB_TOKEN="ghp_..."
+export GITHUB_REPOSITORY="Nikithaxx05/enterprise-mcp-agent"
+```
+
 ## Upgraded Features
 
 - LLM-style SQL generation: natural-language questions are converted into SQL through a safe generator layer. The default implementation is offline, so no external API calls are made. Any generated SQL still passes the read-only guard before execution.
 - Vector database path: document search now uses a local vector-style TF-IDF/cosine index. `chromadb` and `faiss-cpu` are listed as optional vector backends in `pyproject.toml` for production-style replacement.
 - 50k+ synthetic records: the seeder creates 50,000 customers plus related invoice, support ticket, and workflow records.
 - Streamlit dashboard: `dashboard.py` provides a visual interface over the enterprise dataset.
-- Agent workflow: `run_agent_workflow` chains risk reporting, document retrieval, and workflow analysis into one recommendation flow.
+- Enterprise API integrations: optional HubSpot, Jira, and GitHub tools make the demo feel like a realistic enterprise agent stack.
+- Agent workflow: `run_agent_workflow` chains risk reporting, HubSpot CRM context, Jira tickets, document retrieval, workflow analysis, and GitHub delivery risk into one recommendation flow.
 
 ## MCP Client Configuration
 
@@ -88,6 +113,10 @@ Replace the path with the location of this project on your machine.
 - Search documents for compliance requirements related to healthcare customers.
 - Analyse workflows for the Finance department.
 - Generate a risk report for Atlas Energy Partners.
+- Get the HubSpot CRM record for Atlas Energy Partners.
+- Show unresolved critical Jira tickets for Atlas Energy Partners.
+- Which customers have overdue invoices and unresolved critical tickets?
+- Analyse GitHub repository risk for Nikithaxx05/enterprise-mcp-agent.
 
 More examples are in `examples/demo_prompts.md`.
 
@@ -266,6 +295,18 @@ Goal: prioritize finance automation and risk
 - Risk score: 84 (High)
 - Open invoice exposure: $450,000
 - Overdue invoice exposure: $310,000
+
+## HubSpot CRM Context
+HubSpot customer record:
+
+- source: Demo fallback because HUBSPOT_ACCESS_TOKEN is not configured
+- company: Atlas Energy Partners
+- lifecycle_stage: Customer
+
+## Jira Ticket Context
+Open Jira tickets:
+
+- ENT-1842 [Critical / In Progress]: Critical integration outage blocking renewal validation
 
 ## Workflow Analysis
 Automation recommendations ranked by impact:
