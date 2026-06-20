@@ -10,10 +10,15 @@ from typing import Any
 import pandas as pd
 from mcp.server.fastmcp import FastMCP
 
+from sql_generator import generate_sql
+from synthetic_data import generate_synthetic_records
+from vector_search import LocalVectorIndex
+
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "enterprise.db"
 DOCUMENTS_DIR = BASE_DIR / "documents"
+SYNTHETIC_CUSTOMER_COUNT = 50_000
 
 FORBIDDEN_SQL = re.compile(r"\b(drop|delete|update|insert|alter|create|replace|truncate|attach|detach|pragma)\b", re.I)
 
@@ -69,60 +74,77 @@ def seed_database() -> None:
         )
 
         existing = conn.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
-        if existing:
-            return
 
-        today = date.today()
-        customers = [
-            (1, "Acme Manufacturing", "Manufacturing", 18_500_000, 72),
-            (2, "Nimbus Health Group", "Healthcare", 42_000_000, 58),
-            (3, "Vertex Retail Co.", "Retail", 27_300_000, 46),
-            (4, "Atlas Energy Partners", "Energy", 65_000_000, 84),
-            (5, "Summit Financial", "Financial Services", 33_700_000, 69),
-            (6, "Harbor Logistics", "Logistics", 21_900_000, 61),
-        ]
-        invoices = [
-            (1, 1, 125_000, "overdue", today - timedelta(days=21)),
-            (2, 1, 88_400, "paid", today - timedelta(days=45)),
-            (3, 2, 240_000, "open", today + timedelta(days=14)),
-            (4, 2, 73_500, "paid", today - timedelta(days=18)),
-            (5, 3, 51_200, "open", today + timedelta(days=7)),
-            (6, 4, 310_000, "overdue", today - timedelta(days=34)),
-            (7, 4, 140_000, "open", today + timedelta(days=20)),
-            (8, 5, 97_500, "open", today + timedelta(days=5)),
-            (9, 5, 66_000, "overdue", today - timedelta(days=9)),
-            (10, 6, 112_800, "paid", today - timedelta(days=30)),
-        ]
-        tickets = [
-            (1, 1, "billing", "high", "open"),
-            (2, 1, "integration", "medium", "open"),
-            (3, 2, "authentication", "high", "open"),
-            (4, 2, "reporting", "medium", "closed"),
-            (5, 3, "workflow", "low", "open"),
-            (6, 4, "integration", "critical", "open"),
-            (7, 4, "escalation", "high", "open"),
-            (8, 5, "compliance", "high", "open"),
-            (9, 5, "billing", "medium", "closed"),
-            (10, 6, "logistics", "medium", "open"),
-        ]
-        workflows = [
-            (1, "Finance", "Invoice dispute triage", 7, 45, 120),
-            (2, "Finance", "Payment status reporting", 5, 30, 90),
-            (3, "Support", "Priority ticket routing", 6, 25, 260),
-            (4, "Support", "Escalation summary drafting", 8, 40, 75),
-            (5, "Operations", "Stock transfer approval", 9, 60, 110),
-            (6, "Operations", "Vendor backorder follow-up", 6, 35, 140),
-            (7, "Compliance", "Quarterly access review", 10, 120, 12),
-            (8, "Customer Success", "Renewal risk review", 8, 55, 45),
-        ]
+        if existing == 0:
+            today = date.today()
+            customers = [
+                (1, "Acme Manufacturing", "Manufacturing", 18_500_000, 72),
+                (2, "Nimbus Health Group", "Healthcare", 42_000_000, 58),
+                (3, "Vertex Retail Co.", "Retail", 27_300_000, 46),
+                (4, "Atlas Energy Partners", "Energy", 65_000_000, 84),
+                (5, "Summit Financial", "Financial Services", 33_700_000, 69),
+                (6, "Harbor Logistics", "Logistics", 21_900_000, 61),
+            ]
+            invoices = [
+                (1, 1, 125_000, "overdue", today - timedelta(days=21)),
+                (2, 1, 88_400, "paid", today - timedelta(days=45)),
+                (3, 2, 240_000, "open", today + timedelta(days=14)),
+                (4, 2, 73_500, "paid", today - timedelta(days=18)),
+                (5, 3, 51_200, "open", today + timedelta(days=7)),
+                (6, 4, 310_000, "overdue", today - timedelta(days=34)),
+                (7, 4, 140_000, "open", today + timedelta(days=20)),
+                (8, 5, 97_500, "open", today + timedelta(days=5)),
+                (9, 5, 66_000, "overdue", today - timedelta(days=9)),
+                (10, 6, 112_800, "paid", today - timedelta(days=30)),
+            ]
+            tickets = [
+                (1, 1, "billing", "high", "open"),
+                (2, 1, "integration", "medium", "open"),
+                (3, 2, "authentication", "high", "open"),
+                (4, 2, "reporting", "medium", "closed"),
+                (5, 3, "workflow", "low", "open"),
+                (6, 4, "integration", "critical", "open"),
+                (7, 4, "escalation", "high", "open"),
+                (8, 5, "compliance", "high", "open"),
+                (9, 5, "billing", "medium", "closed"),
+                (10, 6, "logistics", "medium", "open"),
+            ]
+            workflows = [
+                (1, "Finance", "Invoice dispute triage", 7, 45, 120),
+                (2, "Finance", "Payment status reporting", 5, 30, 90),
+                (3, "Support", "Priority ticket routing", 6, 25, 260),
+                (4, "Support", "Escalation summary drafting", 8, 40, 75),
+                (5, "Operations", "Stock transfer approval", 9, 60, 110),
+                (6, "Operations", "Vendor backorder follow-up", 6, 35, 140),
+                (7, "Compliance", "Quarterly access review", 10, 120, 12),
+                (8, "Customer Success", "Renewal risk review", 8, 55, 45),
+            ]
 
-        conn.executemany("INSERT INTO customers VALUES (?, ?, ?, ?, ?)", customers)
-        conn.executemany(
-            "INSERT INTO invoices VALUES (?, ?, ?, ?, ?)",
-            [(row_id, customer_id, amount, status, due.isoformat()) for row_id, customer_id, amount, status, due in invoices],
-        )
-        conn.executemany("INSERT INTO support_tickets VALUES (?, ?, ?, ?, ?)", tickets)
-        conn.executemany("INSERT INTO workflows VALUES (?, ?, ?, ?, ?, ?)", workflows)
+            conn.executemany("INSERT INTO customers VALUES (?, ?, ?, ?, ?)", customers)
+            conn.executemany(
+                "INSERT INTO invoices VALUES (?, ?, ?, ?, ?)",
+                [(row_id, customer_id, amount, status, due.isoformat()) for row_id, customer_id, amount, status, due in invoices],
+            )
+            conn.executemany("INSERT INTO support_tickets VALUES (?, ?, ?, ?, ?)", tickets)
+            conn.executemany("INSERT INTO workflows VALUES (?, ?, ?, ?, ?, ?)", workflows)
+            existing = len(customers)
+
+        if existing < SYNTHETIC_CUSTOMER_COUNT:
+            max_customer_id = conn.execute("SELECT COALESCE(MAX(id), 0) FROM customers").fetchone()[0]
+            max_invoice_id = conn.execute("SELECT COALESCE(MAX(id), 0) FROM invoices").fetchone()[0]
+            max_ticket_id = conn.execute("SELECT COALESCE(MAX(id), 0) FROM support_tickets").fetchone()[0]
+            max_workflow_id = conn.execute("SELECT COALESCE(MAX(id), 0) FROM workflows").fetchone()[0]
+            synthetic = generate_synthetic_records(
+                start_customer_id=max_customer_id + 1,
+                start_invoice_id=max_invoice_id + 1,
+                start_ticket_id=max_ticket_id + 1,
+                start_workflow_id=max_workflow_id + 1,
+                customer_count=SYNTHETIC_CUSTOMER_COUNT - existing,
+            )
+            conn.executemany("INSERT INTO customers VALUES (?, ?, ?, ?, ?)", synthetic["customers"])
+            conn.executemany("INSERT INTO invoices VALUES (?, ?, ?, ?, ?)", synthetic["invoices"])
+            conn.executemany("INSERT INTO support_tickets VALUES (?, ?, ?, ?, ?)", synthetic["support_tickets"])
+            conn.executemany("INSERT INTO workflows VALUES (?, ?, ?, ?, ?, ?)", synthetic["workflows"])
 
 
 def execute_read_only_sql(sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
@@ -161,6 +183,7 @@ def build_query(question: str) -> tuple[str, tuple[Any, ...], str]:
             JOIN customers c ON c.id = i.customer_id
             WHERE i.status = 'overdue'
             ORDER BY i.amount DESC
+            LIMIT 10
             """,
             (),
             "Overdue invoice exposure by customer:",
@@ -174,13 +197,14 @@ def build_query(question: str) -> tuple[str, tuple[Any, ...], str]:
             WHERE i.status IN ('open', 'overdue')
             GROUP BY c.name
             ORDER BY open_invoice_amount DESC
+            LIMIT 10
             """,
             (),
             "Open and overdue invoice exposure:",
         )
     if "risk" in normalized:
         return (
-            "SELECT name, industry, annual_revenue, risk_score FROM customers ORDER BY risk_score DESC",
+            "SELECT name, industry, annual_revenue, risk_score FROM customers ORDER BY risk_score DESC LIMIT 10",
             (),
             "Customers ranked by risk score:",
         )
@@ -204,6 +228,7 @@ def build_query(question: str) -> tuple[str, tuple[Any, ...], str]:
             ORDER BY
                 CASE t.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
                 c.name
+            LIMIT 10
             """,
             (),
             "Support tickets by priority:",
@@ -216,37 +241,36 @@ def build_query(question: str) -> tuple[str, tuple[Any, ...], str]:
 
 
 def document_snippets(query: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Search local text files with simple term scoring and return relevant snippets."""
-    terms = [term for term in re.findall(r"[a-z0-9]+", query.lower()) if len(term) > 2]
-    if not terms:
-        return []
-
-    matches: list[dict[str, Any]] = []
-    for path in sorted(DOCUMENTS_DIR.glob("*.txt")):
-        text = path.read_text(encoding="utf-8")
-        paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-        for paragraph in paragraphs:
-            lowered = paragraph.lower()
-            score = sum(lowered.count(term) for term in terms)
-            if score:
-                matches.append({"document": path.name, "score": score, "snippet": paragraph[:700]})
-    return sorted(matches, key=lambda item: item["score"], reverse=True)[:limit]
+    """Search local text files through a local vector index."""
+    index = LocalVectorIndex(DOCUMENTS_DIR)
+    return index.search(query, limit=limit)
 
 
 @mcp.tool()
 def query_business_database(question: str) -> str:
-    """Answer a business question by mapping it to safe read-only SQL over enterprise data."""
+    """Answer a business question with generated read-only SQL over enterprise data."""
     try:
         sql, params, intro = build_query(question)
         rows = execute_read_only_sql(sql, params)
-        return f"{intro}\n\n{rows_to_markdown(rows)}"
+        return f"{intro}\n\nGenerated SQL:\n```sql\n{sql.strip()}\n```\n\n{rows_to_markdown(rows)}"
     except Exception as exc:
         return f"Could not answer the database question: {exc}"
 
 
 @mcp.tool()
+def generate_read_only_sql(question: str) -> str:
+    """Generate SQL for a natural-language question and validate it with the read-only SQL guard."""
+    try:
+        sql, params, intro = generate_sql(question)
+        execute_read_only_sql(sql, params)
+        return f"{intro}\n\n```sql\n{sql.strip()}\n```"
+    except Exception as exc:
+        return f"SQL generation failed safety validation: {exc}"
+
+
+@mcp.tool()
 def search_documents(query: str) -> str:
-    """Find relevant snippets from local enterprise text documents without external search or APIs."""
+    """Find relevant snippets from local enterprise text documents using local vector search."""
     try:
         snippets = document_snippets(query)
         if not snippets:
@@ -365,6 +389,70 @@ def generate_risk_report(customer_name: str) -> str:
         return "\n".join(report)
     except Exception as exc:
         return f"Risk report generation failed: {exc}"
+
+
+@mcp.tool()
+def database_stats() -> str:
+    """Show record counts for the seeded enterprise dataset."""
+    try:
+        rows = execute_read_only_sql(
+            """
+            SELECT 'customers' AS table_name, COUNT(*) AS record_count FROM customers
+            UNION ALL
+            SELECT 'invoices', COUNT(*) FROM invoices
+            UNION ALL
+            SELECT 'support_tickets', COUNT(*) FROM support_tickets
+            UNION ALL
+            SELECT 'workflows', COUNT(*) FROM workflows
+            """
+        )
+        return "Enterprise dataset scale:\n\n" + rows_to_markdown(rows)
+    except Exception as exc:
+        return f"Database stats failed: {exc}"
+
+
+@mcp.tool()
+def run_agent_workflow(goal: str, customer_name: str | None = None, department: str | None = None) -> str:
+    """Run a simple agent workflow that plans, calls tools, and composes an enterprise recommendation."""
+    steps = [
+        f"Goal: {goal}",
+        "",
+        "## Agent Plan",
+        "1. Inspect relevant structured data.",
+        "2. Retrieve document evidence.",
+        "3. Analyse workflow automation impact.",
+        "4. Combine findings into next actions.",
+        "",
+    ]
+
+    if customer_name:
+        steps.extend(["## Customer Risk", generate_risk_report(customer_name), ""])
+
+    query = goal
+    if customer_name:
+        query += f" {customer_name}"
+    steps.extend(["## Document Retrieval", search_documents(query), ""])
+
+    workflow_department = department
+    if not workflow_department:
+        lowered = goal.lower()
+        if "finance" in lowered:
+            workflow_department = "Finance"
+        elif "support" in lowered:
+            workflow_department = "Support"
+        elif "operation" in lowered:
+            workflow_department = "Operations"
+
+    steps.extend(["## Workflow Analysis", analyse_workflows(workflow_department), ""])
+    steps.extend(
+        [
+            "## Agent Recommendation",
+            "- Use the structured data to prioritize customers or departments with measurable exposure.",
+            "- Use document findings as supporting evidence before automation or escalation decisions.",
+            "- Start with the highest monthly manual-hour workflow because it has the clearest automation ROI.",
+        ]
+    )
+    return "\n".join(steps)
 
 
 seed_database()

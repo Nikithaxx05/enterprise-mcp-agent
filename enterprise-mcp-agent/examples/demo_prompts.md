@@ -10,3 +10,8 @@
 8. Analyse all workflows and rank automation opportunities.
 9. Generate a risk report for Atlas Energy Partners.
 10. Generate a risk report for Acme Manufacturing and include document findings.
+11. Generate safe SQL for counting records by table.
+12. Show the current enterprise dataset scale.
+13. Run an agent workflow to prioritize finance automation and customer risk for Atlas Energy Partners.
+14. Which workflow automation candidates have the largest monthly manual-hour impact?
+15. Search vector document snippets for compliance escalation risk.

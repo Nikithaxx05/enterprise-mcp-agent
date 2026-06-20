@@ -14,13 +14,34 @@ pip install -r requirements.txt
 python3 -c "import server; print(server.generate_risk_report('Atlas Energy Partners'))"
 ```
 
+Run the dashboard:
+
+```bash
+streamlit run dashboard.py
+```
+
 ## What It Does
 
 - Exposes enterprise data from SQLite through MCP tools.
-- Searches local business documents for relevant snippets.
+- Generates safe read-only SQL from natural-language questions.
+- Searches local business documents with a local vector-style index.
 - Uses Pandas to rank workflow automation opportunities.
 - Generates customer risk reports by combining invoices, support tickets, customer risk scores, and document findings.
+- Seeds a 50k+ synthetic enterprise dataset for realistic scale testing.
+- Includes a Streamlit dashboard for browsing metrics and automation opportunities.
+- Includes an agent workflow that chains database, document, workflow, and risk-analysis tools.
 - Runs locally without external API calls.
+
+## Current Dataset Scale
+
+```text
+| table_name | record_count |
+| --- | --- |
+| customers | 50000 |
+| invoices | 60010 |
+| support_tickets | 40010 |
+| workflows | 508 |
+```
 
 ## Example Inputs and Outputs
 
@@ -34,15 +55,27 @@ Show overdue invoices by customer
 
 Output:
 
-```text
+````text
 Overdue invoice exposure by customer:
+
+Generated SQL:
+```sql
+SELECT c.name AS customer, i.amount, i.status, i.due_date
+FROM invoices i
+JOIN customers c ON c.id = i.customer_id
+WHERE i.status = 'overdue'
+ORDER BY i.amount DESC
+LIMIT 10
+```
 
 | customer | amount | status | due_date |
 | --- | --- | --- | --- |
 | Atlas Energy Partners | 310000.0 | overdue | 2026-05-08 |
-| Acme Manufacturing | 125000.0 | overdue | 2026-05-21 |
-| Summit Financial | 66000.0 | overdue | 2026-06-02 |
-```
+| Northstar Networks 17437 | 239974.0 | overdue | 2026-04-19 |
+| Northstar Logistics 12877 | 239965.0 | overdue | 2026-05-01 |
+| BluePeak Networks 14938 | 239958.0 | overdue | 2026-04-20 |
+| Cedar Networks 34639 | 239948.0 | overdue | 2026-06-06 |
+````
 
 ### 2. Search Documents
 
@@ -57,9 +90,9 @@ Output:
 ```text
 Relevant local document snippets:
 
-- operations_review.txt (score 2): Finance teams spend the most time on invoice follow-up, dispute triage, and payment-status reporting. High-volume manual work is a strong candidate for automation when the work is frequent, rule-based, and tied to measurable cycle time.
+- operations_review.txt (score 0.185): Finance teams spend the most time on invoice follow-up, dispute triage, and payment-status reporting. High-volume manual work is a strong candidate for automation when the work is frequent, rule-based, and tied to measurable cycle time.
 
-- customer_success_notes.txt (score 1): Acme Manufacturing requested automated invoice reminders after two late payments in the last quarter. Their finance team cited manual reconciliation and missing purchase order references as recurring friction.
+- operations_review.txt (score 0.165): Operations teams identified approval workflows, monthly reporting, and vendor coordination as repeatable processes with high automation potential.
 ```
 
 ### 3. Analyse Workflows
