@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 from mcp.server.fastmcp import FastMCP
 
-from integrations import analyse_github_repository, get_hubspot_customer, get_open_jira_tickets
+from integrations import analyse_github_repository, create_jira_ticket, get_hubspot_customer, get_open_jira_tickets
 from sql_generator import generate_sql
 from synthetic_data import generate_synthetic_records
 from vector_search import LocalVectorIndex
@@ -408,6 +408,29 @@ def get_open_jira_tickets_for_customer(customer_name: str | None = None, priorit
         return get_open_jira_tickets(customer_name=customer_name, priority=priority)
     except Exception as exc:
         return f"Jira ticket lookup failed: {exc}"
+
+
+@mcp.tool()
+def create_jira_ticket_for_customer(
+    customer_name: str,
+    summary: str,
+    description: str,
+    issue_type: str = "Task",
+    priority: str = "High",
+    dry_run: bool = True,
+) -> str:
+    """Create or preview a Jira issue for a customer. dry_run defaults to True to avoid accidental writes."""
+    try:
+        return create_jira_ticket(
+            summary=summary,
+            description=description,
+            issue_type=issue_type,
+            priority=priority,
+            customer_name=customer_name,
+            dry_run=dry_run,
+        )
+    except Exception as exc:
+        return f"Jira ticket creation failed: {exc}"
 
 
 @mcp.tool()

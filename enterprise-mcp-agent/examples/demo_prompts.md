@@ -20,3 +20,5 @@
 18. Which customers have overdue invoices and unresolved critical tickets?
 19. Analyse GitHub repository risk for Nikithaxx05/enterprise-mcp-agent.
 20. Run an agent workflow that combines local risk, HubSpot CRM context, Jira tickets, documents, workflows, and GitHub delivery risk.
+21. Preview creating a Jira ticket for Atlas Energy Partners about a renewal-blocking integration outage.
+22. Create a real Jira ticket for Atlas Energy Partners after Jira credentials are configured and dry_run is false.

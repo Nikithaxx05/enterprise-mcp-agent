@@ -31,6 +31,7 @@ streamlit run dashboard.py
 - Includes a Streamlit dashboard for browsing metrics and automation opportunities.
 - Includes an agent workflow that chains database, document, workflow, and risk-analysis tools.
 - Adds optional HubSpot, Jira, and GitHub API tools for CRM, ticket, and repository-risk context.
+- Adds a guarded Jira issue creation tool with dry-run previews by default.
 - Runs locally without external API calls.
 
 ## Current Dataset Scale

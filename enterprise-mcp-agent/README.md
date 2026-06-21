@@ -26,6 +26,7 @@ flowchart LR
 - `generate_risk_report(customer_name: str)`: combines customer risk, invoice exposure, support tickets, and document findings into a structured report.
 - `get_customer_from_hubspot(customer_name: str)`: fetches CRM company context from HubSpot, with a demo fallback when credentials are absent.
 - `get_open_jira_tickets_for_customer(customer_name: str | None, priority: str | None)`: fetches unresolved Jira tickets, with a demo fallback when credentials are absent.
+- `create_jira_ticket_for_customer(customer_name: str, summary: str, description: str, issue_type: str, priority: str, dry_run: bool)`: previews or creates a Jira issue. `dry_run` defaults to `true` to avoid accidental writes.
 - `analyse_repository_risk(owner_repo: str | None)`: uses the GitHub API to summarize open issues, pull requests, contributors, and repository risk.
 - `find_customers_with_overdue_invoices_and_critical_tickets(customer_name: str | None)`: combines local overdue invoice exposure with unresolved critical Jira ticket context.
 - `database_stats()`: shows record counts for the seeded synthetic enterprise dataset.
@@ -80,6 +81,8 @@ export GITHUB_TOKEN="ghp_..."
 export GITHUB_REPOSITORY="Nikithaxx05/enterprise-mcp-agent"
 ```
 
+Jira issue creation is protected by `dry_run=True` by default. To create a real issue, configure Jira credentials and explicitly call the tool with `dry_run=False`.
+
 ## Upgraded Features
 
 - LLM-style SQL generation: natural-language questions are converted into SQL through a safe generator layer. The default implementation is offline, so no external API calls are made. Any generated SQL still passes the read-only guard before execution.
@@ -115,6 +118,7 @@ Replace the path with the location of this project on your machine.
 - Generate a risk report for Atlas Energy Partners.
 - Get the HubSpot CRM record for Atlas Energy Partners.
 - Show unresolved critical Jira tickets for Atlas Energy Partners.
+- Preview creating a Jira ticket for Atlas Energy Partners.
 - Which customers have overdue invoices and unresolved critical tickets?
 - Analyse GitHub repository risk for Nikithaxx05/enterprise-mcp-agent.
 
@@ -310,6 +314,32 @@ Open Jira tickets:
 
 ## Workflow Analysis
 Automation recommendations ranked by impact:
+```
+
+### `create_jira_ticket_for_customer`
+
+Input:
+
+```text
+customer_name="Atlas Energy Partners"
+summary="Critical renewal blocker: integration outage"
+description="Atlas Energy Partners has overdue invoice exposure and an unresolved critical integration issue. Escalate to the enterprise support queue."
+priority="Critical"
+dry_run=True
+```
+
+Output:
+
+```text
+Jira ticket preview:
+
+- source: Dry run or demo fallback; no Jira issue was created
+- project: ENT
+- summary: Critical renewal blocker: integration outage
+- issue_type: Task
+- priority: Critical
+- customer: Atlas Energy Partners
+- description: Atlas Energy Partners has overdue invoice exposure and an unresolved critical integration issue. Escalate to the enterprise support queue.
 ```
 
 ## Why This Matters

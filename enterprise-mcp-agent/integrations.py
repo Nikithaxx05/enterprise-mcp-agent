@@ -152,6 +152,76 @@ def get_open_jira_tickets(customer_name: str | None = None, priority: str | None
     return "\n".join(lines)
 
 
+def create_jira_ticket(
+    summary: str,
+    description: str,
+    issue_type: str = "Task",
+    priority: str = "High",
+    customer_name: str | None = None,
+    dry_run: bool = True,
+) -> str:
+    """Create a Jira issue, or preview the payload when credentials/dry-run are used."""
+    base_url = os.getenv("JIRA_BASE_URL", "").rstrip("/")
+    email = os.getenv("JIRA_EMAIL")
+    token = os.getenv("JIRA_API_TOKEN")
+    project_key = os.getenv("JIRA_PROJECT_KEY", "ENT")
+    payload = {
+        "fields": {
+            "project": {"key": project_key},
+            "summary": summary,
+            "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": description}],
+                    }
+                ],
+            },
+            "issuetype": {"name": issue_type},
+            "priority": {"name": priority},
+        }
+    }
+    if customer_name:
+        payload["fields"]["labels"] = [customer_name.lower().replace(" ", "-")]
+
+    if dry_run or not base_url or not email or not token:
+        return _format_dict(
+            "Jira ticket preview:",
+            {
+                "source": "Dry run or demo fallback; no Jira issue was created",
+                "project": project_key,
+                "summary": summary,
+                "issue_type": issue_type,
+                "priority": priority,
+                "customer": customer_name or "not specified",
+                "description": description,
+            },
+        )
+
+    response = requests.post(
+        f"{base_url}/rest/api/3/issue",
+        auth=(email, token),
+        headers={"Accept": "application/json", "Content-Type": "application/json"},
+        json=payload,
+        timeout=REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    issue = response.json()
+    issue_key = issue.get("key")
+    return _format_dict(
+        "Jira ticket created:",
+        {
+            "issue_key": issue_key,
+            "url": f"{base_url}/browse/{issue_key}" if issue_key else issue.get("self"),
+            "summary": summary,
+            "priority": priority,
+            "customer": customer_name or "not specified",
+        },
+    )
+
+
 def _github_get(path: str, token: str | None) -> Any:
     url = f"https://api.github.com{path}"
     response = requests.get(url, headers=_headers(token), timeout=REQUEST_TIMEOUT)
